@@ -48,6 +48,12 @@
         }
         this.body.forEach((t => {
           t.x += t.dir.x * speed, t.y += t.dir.y * speed
+          // FEATURE: wrap-around walls — clamp position back into the board
+          const boardSize = tileCount * scl;
+          if (t.x < 0) t.x += boardSize;
+          if (t.x >= boardSize) t.x -= boardSize;
+          if (t.y < 0) t.y += boardSize;
+          if (t.y >= boardSize) t.y -= boardSize;
         }))
       }
     }
@@ -64,10 +70,12 @@
       }))
     }
     checkDeath() {
-      if (this.head.xx >= tileCount || this.head.yy >= tileCount || this.head.xx < 0 || this
-        .head.yy < 0) return !0;
+      // FEATURE: wrap-around walls — boundary no longer kills the snake
       for (let t = 1; t < this.length; t++)
         if (this.head.collides(this.body[t])) return !0;
+      // FEATURE: obstacle collision
+      for (const o of obstacles)
+        if (this.head.xx === o.xx && this.head.yy === o.yy) return !0;
       return !1
     }
     die() {
@@ -142,7 +150,11 @@
       let t = !1;
       snake.body.forEach((e => {
         e.xx == this.xx && this.yy == e.yy && (t = !0)
-      })), t ? this.generateNew() : this.p = scl / 2
+      }))
+      obstacles.forEach((o => {
+        o.xx == this.xx && o.yy == this.yy && (t = !0) // FEATURE: obstacle-aware food spawn
+      }))
+      t ? this.generateNew() : this.p = scl / 2
     }
     draw(t) {
       t.fillStyle = this.color, t.fillRect(this.x + this.p, this.y + this.p, scl - 2 * this.p,
@@ -241,16 +253,45 @@
       })("error", e, t)
     };
   let g, f, m, p, b = 0;
+  let paused = !1; // FEATURE: pause state
 
   function k() {
-    p.fillStyle = "black", p.fillRect(0, 0, canvas.width, canvas.height), g.draw(p), snake
-      .update(), snake.draw(p), p.font = 1.5 * scl + "px Arial", p.fillStyle = "#fff", p.fillText(
+    p.fillStyle = "black", p.fillRect(0, 0, canvas.width, canvas.height), g.draw(p)
+    // FEATURE: draw obstacle tiles
+    p.fillStyle = "#555", obstacles.forEach((o => {
+      p.fillRect(o.xx * scl, o.yy * scl, scl, scl)
+    }))
+    if (!paused) snake.update()
+    snake.draw(p), p.font = 1.5 * scl + "px Arial", p.fillStyle = "#fff", p.fillText(
         b, canvas.width / 2 - p.measureText(b).width / 2, 2.5 * scl), p.font = .5 * scl +
       "px Arial", p.fillStyle = "#fff", p.fillText("High score: " + m, canvas.width / 2 - p
-        .measureText("High score: " + m).width / 2, 3.5 * scl), snake.head.collides(g) && (g
-        .generateNew(), snake.appendNew(), b++), b > m && (m = b, f._hscore = m)
+        .measureText("High score: " + m).width / 2, 3.5 * scl)
+    if (paused) {
+      // FEATURE: pause overlay
+      p.font = .6 * scl + "px Arial", p.fillStyle = "#fff"
+      const msg = "PAUSED - press space"
+      p.fillText(msg, canvas.width / 2 - p.measureText(msg).width / 2, canvas.height / 2)
+      return
+    }
+    snake.head.collides(g) && (g
+      .generateNew(), snake.appendNew(), b++, window.speed = 7 + Math.floor(b / 3)), b > m && (m = b, f._hscore = m)
   }
-  window.tileCount = 15, window.speed = 7, window.onload = function () {
+  window.tileCount = 15, window.speed = 7,
+  // FEATURE: obstacle tiles — fixed positions, spaced away from snake/food spawn
+  window.obstacles = [{
+    xx: 3,
+    yy: 3
+  }, {
+    xx: 11,
+    yy: 3
+  }, {
+    xx: 3,
+    yy: 11
+  }, {
+    xx: 11,
+    yy: 11
+  }],
+  window.onload = function () {
     !async function () {
       window.ga && (window.addEventListener("error", (t => {
         const e = u(t.error ? t.error : t);
@@ -267,6 +308,8 @@
       highScore: m
     }), setInterval(k, 1e3 / 90), w()
   }, window.keys = {}, document.addEventListener("keydown", (t => {
-    snake.isDead && window.location.reload(), keys[t.key.toLowerCase()] = !0
+    if (snake.isDead) return void window.location.reload();
+    if (t.key === " ") return void (paused = !paused); // FEATURE: spacebar pause
+    keys[t.key.toLowerCase()] = !0
   })), document.addEventListener("keyup", (t => keys[t.key.toLowerCase()] = !1))
 })();
