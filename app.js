@@ -1,93 +1,86 @@
 (() => {
   "use strict";
   const SPEED_MULTIPLIER = 1; // test: 0.5 = half speed, 2 = double speed, etc.
+  const FRAME_RATE = 90; // matches setInterval(k, 1000/90) below
+
   class t {
-    constructor(t, e, s) {
-      this.x = t, this.y = e, this.dir = s
+    constructor(xx, yy) {
+      this.xx = xx, this.yy = yy
     }
     collides(t) {
-      return this.xx == t.xx && this.yy == t.yy
-    }
-    get xx() {
-      return Math.round(this.x / scl)
-    }
-    get yy() {
-      return Math.round(this.y / scl)
+      return this.xx === t.xx && this.yy === t.yy
     }
   }
+
   class e {
-    constructor(e, s, i, r) {
-      this.x = e, this.y = s, this.color = r, this.body = [], this.dir = {
-          x: 0,
-          y: 0
-        }, this.newDir = {
-          x: 0,
-          y: 0
-        }, this.greenFace = new Image, this.greenFace.src = "images/head.png", this.redFace =
-        new Image, this.redFace.src = "images/redHead.png", this.face = this.greenFace;
-      this._lastCellX = null, this._lastCellY = null; // FEATURE: reliable per-cell trigger
-      for (var n = 0; n < i; n++) this.body.push(new t((this.x - n) * scl, this.y * scl, {
-        x: 1,
-        y: 0
-      }))
+    constructor(x, y, len, r) {
+      this.color = r, this.body = [], this.dir = { x: 0, y: 0 }, this.newDir = { x: 0, y: 0 };
+      this.greenFace = new Image, this.greenFace.src = "images/head.png";
+      this.redFace = new Image, this.redFace.src = "images/redHead.png";
+      this.face = this.greenFace;
+      this._moveTimer = 0; // FEATURE(B): discrete per-cell tick accumulator
+      for (let n = 0; n < len; n++) this.body.push(new t(x - n, y))
     }
     update() {
-      if (!this.isDead && ((keys.a || keys.arrowleft) && 0 == this.dir.x && (this.newDir.x = -1,
-            this.newDir.y = 0), (keys.d || keys.arrowright) && 0 == this.dir.x && (this.newDir
-            .x = 1, this.newDir.y = 0), (keys.s || keys.arrowdown) && 0 == this.dir.y && (this
-            .newDir.y = 1, this.newDir.x = 0), (keys.w || keys.arrowup) && 0 == this.dir.y && (
-            this.newDir.y = -1, this.newDir.x = 0), 0 != this.dir.x || 0 != this.dir.y || 0 !=
-          this.newDir.x || 0 != this.newDir.y)) {
-        const curX = this.head.xx, curY = this.head.yy;
-        if (curX !== this._lastCellX || curY !== this._lastCellY) {
-          this._lastCellX = curX, this._lastCellY = curY;
-          if (this.checkDeath() && !this.isDead) return this.die();
-          this.body[1].xx == this.head.xx + this.newDir.x && this.body[1].yy == this.head.yy +
-            this.newDir.y || (this.dir.x = this.newDir.x, this.dir.y = this.newDir.y, this.head
-              .dir.x = this.dir.x, this.head.dir.y = this.dir.y);
-          const boardSize = tileCount * scl;
-          for (let t = this.length - 1; t > 0; t--) {
-            let dx = this.body[t - 1].x - this.body[t].x,
-              dy = this.body[t - 1].y - this.body[t].y;
-            dx > boardSize / 2 ? dx -= boardSize : dx < -boardSize / 2 && (dx += boardSize);
-            dy > boardSize / 2 ? dy -= boardSize : dy < -boardSize / 2 && (dy += boardSize);
-            this.body[t].dir.x = dx / scl, this.body[t].dir.y = dy / scl
-          }
-        }
-        this.body.forEach((t => {
-          t.x += t.dir.x * speed, t.y += t.dir.y * speed
-          const boardSize = tileCount * scl;
-          if (t.x < 0) t.x += boardSize;
-          if (t.x >= boardSize) t.x -= boardSize;
-          if (t.y < 0) t.y += boardSize;
-          if (t.y >= boardSize) t.y -= boardSize;
-        }))
+      if (this.isDead) return;
+      // input: queue a turn (reject direct reversal against CURRENT dir here;
+      // reversal-into-second-segment is re-checked at commit time below too,
+      // since newDir may sit queued across several frames before a tick fires)
+      if ((keys.a || keys.arrowleft) && this.dir.x === 0) this.newDir = { x: -1, y: 0 };
+      if ((keys.d || keys.arrowright) && this.dir.x === 0) this.newDir = { x: 1, y: 0 };
+      if ((keys.s || keys.arrowdown) && this.dir.y === 0) this.newDir = { x: 0, y: 1 };
+      if ((keys.w || keys.arrowup) && this.dir.y === 0) this.newDir = { x: 0, y: -1 };
+
+      if (this.dir.x === 0 && this.dir.y === 0 && this.newDir.x === 0 && this.newDir.y === 0) return;
+
+      // FEATURE(B): only step once every framesPerMove frames — this is what
+      // makes every rendered frame land exactly on a grid cell, since position
+      // only ever changes in whole-cell increments.
+      this._moveTimer++;
+      const framesPerMove = Math.max(1, Math.round(FRAME_RATE / speed));
+      if (this._moveTimer < framesPerMove) return;
+      this._moveTimer = 0;
+
+      // commit queued turn unless it reverses directly into the 2nd segment
+      const wouldReverse = this.body.length > 1 &&
+        this.body[1].xx === this.head.xx + this.newDir.x &&
+        this.body[1].yy === this.head.yy + this.newDir.y;
+      if (!wouldReverse) this.dir = { x: this.newDir.x, y: this.newDir.y };
+
+      if (this.dir.x === 0 && this.dir.y === 0) return;
+
+      const nx = (this.head.xx + this.dir.x + tileCount) % tileCount;
+      const ny = (this.head.yy + this.dir.y + tileCount) % tileCount;
+      const willGrow = nx === g.xx && ny === g.yy;
+
+      // death check: tail cell is excluded when not growing, since it vacates
+      // this same tick (standard classic-Snake self-collision rule)
+      const checkAgainst = willGrow ? this.body : this.body.slice(0, -1);
+      for (const seg of checkAgainst) if (seg.xx === nx && seg.yy === ny) return this.die();
+      for (const o of obstacles) if (o.xx === nx && o.yy === ny) return this.die();
+
+      this.body.unshift(new t(nx, ny));
+      if (!willGrow) this.body.pop();
+      else {
+        g.generateNew();
+        b++;
+        window.speed = (DIFFICULTIES[currentDifficulty].baseSpeed +
+          Math.floor(b / DIFFICULTIES[currentDifficulty].rampDivisor)) * SPEED_MULTIPLIER;
+        if (b > m) m = b, f["_hscore_" + currentDifficulty] = m;
+        updateHeader();
       }
     }
     draw(t) {
-      // FIX: snap render position to the grid instead of drawing raw accumulated
-      // x/y. x/y advance by `speed` px/frame, and speed (5/7/9) has no relation
-      // to scl (viewport-derived), so raw pixels rarely land on n*scl — segments
-      // rendered off-grid relative to food/obstacles (which always draw at exact
-      // n*scl). Collision logic (xx/yy getters) already rounds, so this only
-      // changes what's drawn, not game behavior.
+      // FIX(B): body is always stored in exact cell coordinates now, so
+      // xx*scl/yy*scl is always exact — no rounding or interpolation needed.
       this.body.forEach((e => {
-        const rx = Math.round(e.x / scl) * scl, ry = Math.round(e.y / scl) * scl;
-        t.fillStyle = this.color, t.fillRect(rx, ry, scl, scl)
-      }))
-      const hx = Math.round(this.head.x / scl) * scl, hy = Math.round(this.head.y / scl) * scl;
-      t.drawImage(this.face, hx, hy, scl, scl)
-    }
-    appendNew() {
-      let e = this.tail;
-      this.body.push(new t(e.x, e.y, {
-        x: 0,
-        y: 0
-      }))
+        t.fillStyle = this.color, t.fillRect(e.xx * scl, e.yy * scl, scl, scl)
+      }));
+      t.drawImage(this.face, this.head.xx * scl, this.head.yy * scl, scl, scl)
     }
     checkDeath() {
-      for (let t = 1; t < this.length; t++)
-        if (this.head.collides(this.body[t])) return !0;
+      for (let i = 1; i < this.length; i++)
+        if (this.head.collides(this.body[i])) return !0;
       for (const o of obstacles)
         if (this.head.xx === o.xx && this.head.yy === o.yy) return !0;
       return !1
@@ -117,6 +110,7 @@
       return this.head.yy
     }
   }
+
   class s {
     constructor() {
       return new Proxy(this, this)
@@ -136,20 +130,20 @@
       }
     }
   }
+
   class l {
     constructor(t, e, s) {
       this.xx = t, this.yy = e, this.padding = s, this.p = s, this.color = "red"
     }
     generateNew() {
-      this.xx = Math.floor(Math.random() * tileCount), this.yy = Math.floor(Math
-      .random() * tileCount);
+      this.xx = Math.floor(Math.random() * tileCount), this.yy = Math.floor(Math.random() * tileCount);
       let t = !1;
       snake.body.forEach((e => {
         e.xx == this.xx && this.yy == e.yy && (t = !0)
-      }))
+      }));
       obstacles.forEach((o => {
         o.xx == this.xx && o.yy == this.yy && (t = !0)
-      }))
+      }));
       t ? this.generateNew() : this.p = scl / 2
     }
     draw(t) {
@@ -163,6 +157,7 @@
       return this.yy * scl
     }
   }
+
   let g, f, m, p, b = 0;
   let paused = !1;
 
@@ -203,10 +198,7 @@
     if (!DIFFICULTIES[diffName]) diffName = "medium";
     currentDifficulty = diffName;
     const preset = DIFFICULTIES[diffName];
-    window.obstacles = preset.obstacles.map((o => ({
-      xx: o.xx,
-      yy: o.yy
-    })));
+    window.obstacles = preset.obstacles.map((o => ({ xx: o.xx, yy: o.yy })));
     window.speed = preset.baseSpeed * SPEED_MULTIPLIER;
     paused = !1;
     b = 0;
@@ -231,29 +223,27 @@
 
   function updatePauseButton() {
     const btn = document.querySelector("#pause-btn");
-    btn && (btn.textContent = paused ? "Resume" : "Pause", btn.classList.toggle("is-paused",
-      paused))
+    btn && (btn.textContent = paused ? "Resume" : "Pause", btn.classList.toggle("is-paused", paused))
   }
 
   function k() {
-    p.fillStyle = "black", p.fillRect(0, 0, canvas.width, canvas.height), g.draw(p)
+    p.fillStyle = "black", p.fillRect(0, 0, canvas.width, canvas.height), g.draw(p);
     p.fillStyle = "#555", obstacles.forEach((o => {
       p.fillRect(o.xx * scl, o.yy * scl, scl, scl)
-    }))
-    if (!paused) snake.update()
-    snake.draw(p)
+    }));
+    if (!paused) snake.update();
+    snake.draw(p);
     if (paused) {
-      p.font = .6 * scl + "px Arial", p.fillStyle = "#fff"
-      const msg = "PAUSED - press space"
-      p.fillText(msg, canvas.width / 2 - p.measureText(msg).width / 2, canvas.height / 2)
+      p.font = .6 * scl + "px Arial", p.fillStyle = "#fff";
+      const msg = "PAUSED - press space";
+      p.fillText(msg, canvas.width / 2 - p.measureText(msg).width / 2, canvas.height / 2);
       return
     }
-    snake.head.collides(g) && (g
-      .generateNew(), snake.appendNew(), b++, window.speed = (DIFFICULTIES[currentDifficulty]
-        .baseSpeed + Math.floor(b / DIFFICULTIES[currentDifficulty].rampDivisor)) * SPEED_MULTIPLIER), b > m && (m = b,
-      f["_hscore_" + currentDifficulty] = m)
+    // NOTE: food-eat/score/speed-ramp logic now lives inside snake.update(),
+    // since eating only happens on a movement tick, not every render frame.
     updateHeader()
   }
+
   window.tileCount = 15, window.speed = 7 * SPEED_MULTIPLIER,
   window.onload = function () {
     let t = document.querySelector("#canvas");
@@ -272,7 +262,7 @@
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout((() => initGame(currentDifficulty)), 150);
     }));
-    setInterval(k, 1e3 / 90)
+    setInterval(k, 1e3 / FRAME_RATE)
   }, window.keys = {}, document.addEventListener("keydown", (t => {
     if (snake.isDead) return void window.location.reload();
     if (t.key === " ") return paused = !paused, void updatePauseButton();
