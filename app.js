@@ -313,10 +313,7 @@
       p.fillRect(o.xx * scl, o.yy * scl, scl, scl)
     }))
     if (!paused) snake.update()
-    snake.draw(p), p.font = 1.5 * scl + "px Arial", p.fillStyle = "#fff", p.fillText(
-        b, canvas.width / 2 - p.measureText(b).width / 2, 2.5 * scl), p.font = .5 * scl +
-      "px Arial", p.fillStyle = "#fff", p.fillText("High score: " + m, canvas.width / 2 - p
-        .measureText("High score: " + m).width / 2, 3.5 * scl)
+    snake.draw(p)
     if (paused) {
       // FEATURE: pause overlay
       p.font = .6 * scl + "px Arial", p.fillStyle = "#fff"

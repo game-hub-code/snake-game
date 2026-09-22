@@ -49,33 +49,110 @@
 
 			#header-row {
 				display: flex;
-				gap: 20px;
 				align-items: center;
-				color: white;
-				font-family: Arial, sans-serif;
+				gap: 10px;
+				width: 700px;
+				box-sizing: border-box;
+				padding: 10px 16px;
+				margin-bottom: 8px;
+				background: #2c2c2c;
+				border: 1px solid #3a3a3a;
+				border-radius: 10px;
+				color: #eee;
+				font-family: 'Segoe UI', Arial, sans-serif;
 				font-size: 14px;
-				margin-bottom: 6px;
 			}
 
-			#header-row select {
+			#header-row .diff-group {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-right: auto;
+			}
+
+			#header-row .diff-group label {
+				color: #aaa;
+				font-weight: 600;
+				letter-spacing: .03em;
+				text-transform: uppercase;
+				font-size: 11px;
+			}
+
+			#difficulty-select {
 				font-family: inherit;
-				font-size: inherit;
+				font-size: 13px;
+				color: #eee;
+				background: #1e1e1e;
+				border: 1px solid #4a4a4a;
+				border-radius: 6px;
+				padding: 4px 8px;
+				cursor: pointer;
+			}
+
+			#difficulty-select:hover {
+				border-color: #777;
+			}
+
+			.stat-pill {
+				display: flex;
+				align-items: baseline;
+				gap: 6px;
+				background: #1e1e1e;
+				border: 1px solid #3a3a3a;
+				border-radius: 6px;
+				padding: 4px 10px;
+			}
+
+			.stat-pill .stat-label {
+				color: #999;
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: .03em;
+				font-weight: 600;
+			}
+
+			.stat-pill .stat-value {
+				font-weight: 700;
+				font-size: 15px;
+			}
+
+			#header-difficulty {
+				color: #7fdc7f;
+				text-transform: capitalize;
+			}
+
+			#header-score {
+				color: #fff;
+			}
+
+			#header-best {
+				color: #ffd166;
 			}
 		</style>
 		<title>Snake</title>
 	</head>
 	<body>
 		<div id="header-row">
-			<label for="difficulty-select">Difficulty:
+			<div class="diff-group">
+				<label for="difficulty-select">Difficulty</label>
 				<select id="difficulty-select">
 					<option value="easy">Easy</option>
 					<option value="medium" selected>Medium</option>
 					<option value="hard">Hard</option>
 				</select>
-			</label>
-			<span>Current: <span id="header-difficulty">medium</span></span>
-			<span>Score: <span id="header-score">0</span></span>
-			<span>Best: <span id="header-best">0</span></span>
+			</div>
+			<div class="stat-pill">
+				<span class="stat-label">Mode</span>
+				<span class="stat-value" id="header-difficulty">medium</span>
+			</div>
+			<div class="stat-pill">
+				<span class="stat-label">Score</span>
+				<span class="stat-value" id="header-score">0</span>
+			</div>
+			<div class="stat-pill">
+				<span class="stat-label">Best</span>
+				<span class="stat-value" id="header-best">0</span>
+			</div>
 		</div>
 		<canvas id="canvas" width="1310" height="1310"></canvas>
 
