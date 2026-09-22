@@ -19,7 +19,9 @@
       this.redFace = new Image, this.redFace.src = "images/redHead.png";
       this.face = this.greenFace;
       this._moveTimer = 0; // FEATURE(B): discrete per-cell tick accumulator
-      for (let n = 0; n < len; n++) this.body.push(new t(x - n, y))
+      this._framesPerMove = 1;
+      for (let n = 0; n < len; n++) this.body.push(new t(x - n, y));
+      this._prevBody = this.body.map((s => ({ xx: s.xx, yy: s.yy }))); // FEATURE: interpolation baseline
     }
     update() {
       if (this.isDead) return;
@@ -38,6 +40,7 @@
       // only ever changes in whole-cell increments.
       this._moveTimer++;
       const framesPerMove = Math.max(1, Math.round(FRAME_RATE / speed));
+      this._framesPerMove = framesPerMove; // FEATURE: exposed for draw()-time interpolation alpha
       if (this._moveTimer < framesPerMove) return;
       this._moveTimer = 0;
 
@@ -59,6 +62,7 @@
       for (const seg of checkAgainst) if (seg.xx === nx && seg.yy === ny) return this.die();
       for (const o of obstacles) if (o.xx === nx && o.yy === ny) return this.die();
 
+      this._prevBody = this.body.map((s => ({ xx: s.xx, yy: s.yy }))); // FEATURE: snapshot before mutation
       this.body.unshift(new t(nx, ny));
       if (!willGrow) this.body.pop();
       else {
@@ -71,22 +75,34 @@
       }
     }
     draw(t) {
-      // FIX(B): body is always stored in exact cell coordinates now, so
-      // xx*scl/yy*scl is always exact — no rounding or interpolation needed.
-      this.body.forEach((e => {
-        t.fillStyle = this.color, t.fillRect(e.xx * scl, e.yy * scl, scl, scl)
+      // FEATURE: visual interpolation between the last two committed ticks.
+      // Logic/collision stay exactly grid-based (unchanged); only the drawn
+      // position glides between prevBody[i] (segment i's position before this
+      // tick, or its own current position if it has no predecessor state —
+      // e.g. a tail segment retained this tick by growth, which shouldn't move)
+      // and body[i] (its authoritative current cell), using shortest-path delta
+      // so a wrap-around edge doesn't sweep a segment across the whole board.
+      const alpha = Math.min(1, this._moveTimer / this._framesPerMove);
+      const renderPos = (i) => {
+        const cur = this.body[i];
+        const old = i < this._prevBody.length ? this._prevBody[i] : cur;
+        let dx = cur.xx - old.xx, dy = cur.yy - old.yy;
+        if (dx > tileCount / 2) dx -= tileCount; else if (dx < -tileCount / 2) dx += tileCount;
+        if (dy > tileCount / 2) dy -= tileCount; else if (dy < -tileCount / 2) dy += tileCount;
+        const fx = ((old.xx + dx * alpha) % tileCount + tileCount) % tileCount;
+        const fy = ((old.yy + dy * alpha) % tileCount + tileCount) % tileCount;
+        return { x: fx * scl, y: fy * scl };
+      };
+      this.body.forEach(((e, i) => {
+        const pos = renderPos(i);
+        t.fillStyle = this.color, t.fillRect(pos.x, pos.y, scl, scl)
       }));
-      t.drawImage(this.face, this.head.xx * scl, this.head.yy * scl, scl, scl)
-    }
-    checkDeath() {
-      for (let i = 1; i < this.length; i++)
-        if (this.head.collides(this.body[i])) return !0;
-      for (const o of obstacles)
-        if (this.head.xx === o.xx && this.head.yy === o.yy) return !0;
-      return !1
+      const headPos = renderPos(0);
+      t.drawImage(this.face, headPos.x, headPos.y, scl, scl)
     }
     die() {
       this.isDead = !0;
+      this._prevBody = this.body.map((s => ({ xx: s.xx, yy: s.yy }))); // freeze: no mid-interpolation death frame
       let t = this.color;
       this.color = "red", this.face = this.redFace, setTimeout((() => {
         this.color = t, this.face = this.greenFace, setTimeout((() => {
