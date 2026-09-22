@@ -38,7 +38,7 @@
             this.newDir.y = -1, this.newDir.x = 0), 0 != this.dir.x || 0 != this.dir.y || 0 !=
           this.newDir.x || 0 != this.newDir.y)) {
         // FIX: the old check used (x/scl).toFixed(1) ending in "0" to detect grid
-        // alignment. scl (~87.33px) isn't evenly divisible by speed (5/7/9px), so that
+        // alignment. scl isn't guaranteed to be evenly divisible by speed (5/7/9px), so
         // narrow window sometimes never gets hit (turn/death check skipped — snake
         // "passes through" what should be a collision) and sometimes gets hit twice in a
         // row (double-processed — stray false self-collision). Comparing rounded cell
@@ -51,9 +51,22 @@
           this.body[1].xx == this.head.xx + this.newDir.x && this.body[1].yy == this.head.yy +
             this.newDir.y || (this.dir.x = this.newDir.x, this.dir.y = this.newDir.y, this.head
               .dir.x = this.dir.x, this.head.dir.y = this.dir.y);
-          for (let t = this.length - 1; t > 0; t--) this.body[t].dir.x = (this.body[t - 1].x -
-              this.body[t].x) / scl, this.body[t].dir.y = (this.body[t - 1].y - this.body[t]
-            .y) / scl
+          // FIX: dir was computed from the raw pixel gap between consecutive segments,
+          // which assumes both are on the same unwrapped number line. The instant one
+          // segment has wrapped past the board edge and its neighbor hasn't yet, that raw
+          // gap spans almost the whole board instead of one cell — producing a garbage
+          // direction for that segment, which either did or didn't happen to collide with
+          // the head depending on frame timing (the "sometimes kills, sometimes doesn't"
+          // symptom). Using the shortest toroidal delta keeps it a normal ±1-cell step
+          // across the wrap seam too.
+          const boardSize = tileCount * scl;
+          for (let t = this.length - 1; t > 0; t--) {
+            let dx = this.body[t - 1].x - this.body[t].x,
+              dy = this.body[t - 1].y - this.body[t].y;
+            dx > boardSize / 2 ? dx -= boardSize : dx < -boardSize / 2 && (dx += boardSize);
+            dy > boardSize / 2 ? dy -= boardSize : dy < -boardSize / 2 && (dy += boardSize);
+            this.body[t].dir.x = dx / scl, this.body[t].dir.y = dy / scl
+          }
         }
         this.body.forEach((t => {
           t.x += t.dir.x * speed, t.y += t.dir.y * speed
