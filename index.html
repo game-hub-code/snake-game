@@ -4,7 +4,7 @@
 		<style>
 			html,
 			body {
-				background: #2bd90d;
+				background: #222;
 				height: 100%;
 			}
 
@@ -46,10 +46,37 @@
 			[hidden] {
 				display: none !important;
 			}
+
+			#header-row {
+				display: flex;
+				gap: 20px;
+				align-items: center;
+				color: white;
+				font-family: Arial, sans-serif;
+				font-size: 14px;
+				margin-bottom: 6px;
+			}
+
+			#header-row select {
+				font-family: inherit;
+				font-size: inherit;
+			}
 		</style>
 		<title>Snake</title>
 	</head>
 	<body>
+		<div id="header-row">
+			<label for="difficulty-select">Difficulty:
+				<select id="difficulty-select">
+					<option value="easy">Easy</option>
+					<option value="medium" selected>Medium</option>
+					<option value="hard">Hard</option>
+				</select>
+			</label>
+			<span>Current: <span id="header-difficulty">medium</span></span>
+			<span>Score: <span id="header-score">0</span></span>
+			<span>Best: <span id="header-best">0</span></span>
+		</div>
 		<canvas id="canvas" width="1310" height="1310"></canvas>
 
 		<script src="app.js"></script>

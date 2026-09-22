@@ -255,6 +255,57 @@
   let g, f, m, p, b = 0;
   let paused = !1; // FEATURE: pause state
 
+  // FEATURE: difficulty levels — control base/ramp speed and obstacle count
+  const DIFFICULTIES = {
+    easy: {
+      baseSpeed: 5,
+      rampDivisor: 4,
+      obstacles: [{ xx: 3, yy: 3 }, { xx: 11, yy: 11 }]
+    },
+    medium: {
+      baseSpeed: 7,
+      rampDivisor: 3,
+      obstacles: [{ xx: 3, yy: 3 }, { xx: 11, yy: 3 }, { xx: 3, yy: 11 }, { xx: 11, yy: 11 }]
+    },
+    hard: {
+      baseSpeed: 9,
+      rampDivisor: 2,
+      obstacles: [
+        { xx: 3, yy: 3 }, { xx: 11, yy: 3 }, { xx: 3, yy: 11 }, { xx: 11, yy: 11 },
+        { xx: 7, yy: 3 }, { xx: 7, yy: 11 }, { xx: 5, yy: 5 }, { xx: 9, yy: 9 }
+      ]
+    }
+  };
+  let currentDifficulty = "medium";
+
+  function initGame(diffName) {
+    if (!DIFFICULTIES[diffName]) diffName = "medium";
+    currentDifficulty = diffName;
+    const preset = DIFFICULTIES[diffName];
+    window.obstacles = preset.obstacles.map((o => ({
+      xx: o.xx,
+      yy: o.yy
+    })));
+    window.speed = preset.baseSpeed;
+    paused = !1;
+    b = 0;
+    const canvasEl = document.querySelector("#canvas");
+    window.scl = canvasEl.width / tileCount;
+    g = new l(6, Math.floor(tileCount / 2), 5);
+    window.snake = new e(4, Math.floor(tileCount / 2), 3, "rgb(50, 255, 50)");
+    m = f["_hscore_" + diffName] || 0;
+    updateHeader();
+  }
+
+  function updateHeader() {
+    const diffEl = document.querySelector("#header-difficulty"),
+      scoreEl = document.querySelector("#header-score"),
+      bestEl = document.querySelector("#header-best");
+    diffEl && (diffEl.textContent = currentDifficulty);
+    scoreEl && (scoreEl.textContent = b);
+    bestEl && (bestEl.textContent = m);
+  }
+
   function k() {
     p.fillStyle = "black", p.fillRect(0, 0, canvas.width, canvas.height), g.draw(p)
     // FEATURE: draw obstacle tiles
@@ -274,23 +325,12 @@
       return
     }
     snake.head.collides(g) && (g
-      .generateNew(), snake.appendNew(), b++, window.speed = 7 + Math.floor(b / 3)), b > m && (m = b, f._hscore = m)
+      .generateNew(), snake.appendNew(), b++, window.speed = DIFFICULTIES[currentDifficulty]
+        .baseSpeed + Math.floor(b / DIFFICULTIES[currentDifficulty].rampDivisor)), b > m && (m = b,
+      f["_hscore_" + currentDifficulty] = m)
+    updateHeader()
   }
   window.tileCount = 15, window.speed = 7,
-  // FEATURE: obstacle tiles — fixed positions, spaced away from snake/food spawn
-  window.obstacles = [{
-    xx: 3,
-    yy: 3
-  }, {
-    xx: 11,
-    yy: 3
-  }, {
-    xx: 3,
-    yy: 11
-  }, {
-    xx: 11,
-    yy: 11
-  }],
   window.onload = function () {
     !async function () {
       window.ga && (window.addEventListener("error", (t => {
@@ -302,9 +342,11 @@
       })))
     }();
     let t = document.querySelector("#canvas");
-    p = t.getContext("2d"), f = new s, window.scl = t.width / tileCount, g = new l(6, Math
-      .floor(tileCount / 2), 5), window.snake = new e(4, Math.floor(tileCount / 2), 3,
-      "rgb(50, 255, 50)"), m = f._hscore || 0, d("page_view", {
+    p = t.getContext("2d"), f = new s;
+    const diffSelect = document.querySelector("#difficulty-select");
+    initGame(diffSelect ? diffSelect.value : "medium");
+    diffSelect && diffSelect.addEventListener("change", (ev => initGame(ev.target.value)));
+    d("page_view", {
       highScore: m
     }), setInterval(k, 1e3 / 90), w()
   }, window.keys = {}, document.addEventListener("keydown", (t => {
