@@ -38,13 +38,6 @@
             .newDir.y = 1, this.newDir.x = 0), (keys.w || keys.arrowup) && 0 == this.dir.y && (
             this.newDir.y = -1, this.newDir.x = 0), 0 != this.dir.x || 0 != this.dir.y || 0 !=
           this.newDir.x || 0 != this.newDir.y)) {
-        // FIX: the old check used (x/scl).toFixed(1) ending in "0" to detect grid
-        // alignment. scl isn't guaranteed to be evenly divisible by speed (5/7/9px), so
-        // narrow window sometimes never gets hit (turn/death check skipped — snake
-        // "passes through" what should be a collision) and sometimes gets hit twice in a
-        // row (double-processed — stray false self-collision). Comparing rounded cell
-        // coordinates against the last-processed cell fires exactly once per cell entry,
-        // independent of speed/scl ratio.
         const curX = this.head.xx, curY = this.head.yy;
         if (curX !== this._lastCellX || curY !== this._lastCellY) {
           this._lastCellX = curX, this._lastCellY = curY;
@@ -52,14 +45,6 @@
           this.body[1].xx == this.head.xx + this.newDir.x && this.body[1].yy == this.head.yy +
             this.newDir.y || (this.dir.x = this.newDir.x, this.dir.y = this.newDir.y, this.head
               .dir.x = this.dir.x, this.head.dir.y = this.dir.y);
-          // FIX: dir was computed from the raw pixel gap between consecutive segments,
-          // which assumes both are on the same unwrapped number line. The instant one
-          // segment has wrapped past the board edge and its neighbor hasn't yet, that raw
-          // gap spans almost the whole board instead of one cell — producing a garbage
-          // direction for that segment, which either did or didn't happen to collide with
-          // the head depending on frame timing (the "sometimes kills, sometimes doesn't"
-          // symptom). Using the shortest toroidal delta keeps it a normal ±1-cell step
-          // across the wrap seam too.
           const boardSize = tileCount * scl;
           for (let t = this.length - 1; t > 0; t--) {
             let dx = this.body[t - 1].x - this.body[t].x,
@@ -71,7 +56,6 @@
         }
         this.body.forEach((t => {
           t.x += t.dir.x * speed, t.y += t.dir.y * speed
-          // FEATURE: wrap-around walls — clamp position back into the board
           const boardSize = tileCount * scl;
           if (t.x < 0) t.x += boardSize;
           if (t.x >= boardSize) t.x -= boardSize;
@@ -81,9 +65,18 @@
       }
     }
     draw(t) {
+      // FIX: snap render position to the grid instead of drawing raw accumulated
+      // x/y. x/y advance by `speed` px/frame, and speed (5/7/9) has no relation
+      // to scl (viewport-derived), so raw pixels rarely land on n*scl — segments
+      // rendered off-grid relative to food/obstacles (which always draw at exact
+      // n*scl). Collision logic (xx/yy getters) already rounds, so this only
+      // changes what's drawn, not game behavior.
       this.body.forEach((e => {
-        t.fillStyle = this.color, t.fillRect(e.x, e.y, scl, scl)
-      })), t.drawImage(this.face, this.head.x, this.head.y, scl, scl)
+        const rx = Math.round(e.x / scl) * scl, ry = Math.round(e.y / scl) * scl;
+        t.fillStyle = this.color, t.fillRect(rx, ry, scl, scl)
+      }))
+      const hx = Math.round(this.head.x / scl) * scl, hy = Math.round(this.head.y / scl) * scl;
+      t.drawImage(this.face, hx, hy, scl, scl)
     }
     appendNew() {
       let e = this.tail;
@@ -93,10 +86,8 @@
       }))
     }
     checkDeath() {
-      // FEATURE: wrap-around walls — boundary no longer kills the snake
       for (let t = 1; t < this.length; t++)
         if (this.head.collides(this.body[t])) return !0;
-      // FEATURE: obstacle collision
       for (const o of obstacles)
         if (this.head.xx === o.xx && this.head.yy === o.yy) return !0;
       return !1
@@ -157,7 +148,7 @@
         e.xx == this.xx && this.yy == e.yy && (t = !0)
       }))
       obstacles.forEach((o => {
-        o.xx == this.xx && o.yy == this.yy && (t = !0) // FEATURE: obstacle-aware food spawn
+        o.xx == this.xx && o.yy == this.yy && (t = !0)
       }))
       t ? this.generateNew() : this.p = scl / 2
     }
@@ -173,9 +164,8 @@
     }
   }
   let g, f, m, p, b = 0;
-  let paused = !1; // FEATURE: pause state
+  let paused = !1;
 
-  // FEATURE: difficulty levels — control base/ramp speed and obstacle count
   const DIFFICULTIES = {
     easy: {
       baseSpeed: 5,
@@ -203,14 +193,9 @@
       headerEl = document.querySelector("#header-row"),
       availW = window.innerWidth,
       availH = window.innerHeight - (headerEl ? headerEl.offsetHeight : 0);
-    // FEATURE: fullscreen canvas — size is the largest square that fits the
-    // viewport below the header, snapped down to a whole number of cells so
-    // scl stays an integer (no half-cell edge row/column).
     let size = Math.floor(Math.min(availW, availH) / tileCount) * tileCount;
     size = Math.max(size, tileCount * 10);
     canvasEl.width = size, canvasEl.height = size;
-    // CSS box must match the bitmap 1:1, or the browser scales/blurs the
-    // canvas to whatever size flexbox/CSS would otherwise give it.
     canvasEl.style.width = size + "px", canvasEl.style.height = size + "px";
   }
 
@@ -252,14 +237,12 @@
 
   function k() {
     p.fillStyle = "black", p.fillRect(0, 0, canvas.width, canvas.height), g.draw(p)
-    // FEATURE: draw obstacle tiles
     p.fillStyle = "#555", obstacles.forEach((o => {
       p.fillRect(o.xx * scl, o.yy * scl, scl, scl)
     }))
     if (!paused) snake.update()
     snake.draw(p)
     if (paused) {
-      // FEATURE: pause overlay
       p.font = .6 * scl + "px Arial", p.fillStyle = "#fff"
       const msg = "PAUSED - press space"
       p.fillText(msg, canvas.width / 2 - p.measureText(msg).width / 2, canvas.height / 2)
@@ -284,10 +267,6 @@
       snake.isDead || (paused = !paused, updatePauseButton())
     }));
     restartBtn && restartBtn.addEventListener("click", (() => initGame(currentDifficulty)));
-    // FEATURE: fullscreen — recompute canvas size on resize. Restarts the round
-    // rather than rescaling live positions, since rescaling mid-game is what
-    // caused the grid-drift/misalignment bugs earlier — restart avoids that class
-    // of bug entirely at the cost of losing progress on resize.
     let resizeTimer;
     window.addEventListener("resize", (() => {
       clearTimeout(resizeTimer);
@@ -296,7 +275,7 @@
     setInterval(k, 1e3 / 90)
   }, window.keys = {}, document.addEventListener("keydown", (t => {
     if (snake.isDead) return void window.location.reload();
-    if (t.key === " ") return paused = !paused, void updatePauseButton(); // FEATURE: spacebar pause
+    if (t.key === " ") return paused = !paused, void updatePauseButton();
     keys[t.key.toLowerCase()] = !0
   })), document.addEventListener("keyup", (t => keys[t.key.toLowerCase()] = !1))
 })();
