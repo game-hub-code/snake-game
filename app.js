@@ -67,6 +67,14 @@
             dy > boardSize / 2 ? dy -= boardSize : dy < -boardSize / 2 && (dy += boardSize);
             this.body[t].dir.x = dx / scl, this.body[t].dir.y = dy / scl
           }
+          // FIX: speed (5/7/9) isn't a divisor of scl, so per-frame pixel steps
+          // never land exactly on a cell boundary — error accumulates and segments
+          // drift off the grid (misaligned blocks, head visually off the food tile).
+          // Re-snap every segment to its exact grid cell each time the head enters
+          // a new cell, wiping out the drift before it compounds.
+          this.body.forEach((seg => {
+            seg.x = seg.xx * scl, seg.y = seg.yy * scl
+          }))
         }
         this.body.forEach((t => {
           t.x += t.dir.x * speed, t.y += t.dir.y * speed
@@ -167,8 +175,8 @@
       this.xx = t, this.yy = e, this.padding = s, this.p = s, this.color = "red"
     }
     generateNew() {
-      this.xx = Math.round(Math.random() * (tileCount - 1)), this.yy = Math.round(Math
-      .random() * (tileCount - 1));
+      this.xx = Math.floor(Math.random() * tileCount), this.yy = Math.floor(Math
+      .random() * tileCount);
       let t = !1;
       snake.body.forEach((e => {
         e.xx == this.xx && this.yy == e.yy && (t = !0)
