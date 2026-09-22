@@ -78,6 +78,13 @@
       }));
       t.drawImage(this.face, this.head.xx * scl, this.head.yy * scl, scl, scl)
     }
+    checkDeath() {
+      for (let i = 1; i < this.length; i++)
+        if (this.head.collides(this.body[i])) return !0;
+      for (const o of obstacles)
+        if (this.head.xx === o.xx && this.head.yy === o.yy) return !0;
+      return !1
+    }
     die() {
       this.isDead = !0;
       let t = this.color;
