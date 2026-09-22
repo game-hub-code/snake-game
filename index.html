@@ -6,15 +6,14 @@
 			body {
 				background: #222;
 				height: 100%;
+				width: 100%;
+				overflow: hidden;
 			}
 
 			body {
-				min-height: 100vh;
 				display: flex;
 				flex-direction: column;
 				align-items: center;
-				justify-content: flex-start;
-				overflow-y: auto;
 			}
 
 			* {
@@ -23,11 +22,8 @@
 				box-sizing: border-box;
 			}
 			#canvas {
-				margin: 3px;
 				display: block;
-				width: 750px;
-				height: 750px;
-				margin-bottom: 0;
+				flex: 0 0 auto;
 			}
 
 			form {
@@ -40,10 +36,6 @@
 				user-select: none;
 			}
 
-			div#ads {
-				margin: 3px;
-			}
-
 			[hidden] {
 				display: none !important;
 			}
@@ -52,13 +44,12 @@
 				display: flex;
 				align-items: center;
 				gap: 10px;
-				width: 750px;
+				width: 100%;
+				flex: 0 0 auto;
 				box-sizing: border-box;
 				padding: 10px 16px;
-				margin-bottom: 8px;
 				background: #2c2c2c;
-				border: 1px solid #3a3a3a;
-				border-radius: 10px;
+				border-bottom: 1px solid #3a3a3a;
 				color: #eee;
 				font-family: 'Segoe UI', Arial, sans-serif;
 				font-size: 14px;
@@ -183,10 +174,8 @@
 			<button type="button" id="pause-btn" class="header-btn">Pause</button>
 			<button type="button" id="restart-btn" class="header-btn">Restart</button>
 		</div>
-		<canvas id="canvas" width="750" height="750"></canvas>
+		<canvas id="canvas"></canvas>
 
 		<script src="app.js"></script>
-
-		<div id="ads"></div>
 	</body>
 </html>

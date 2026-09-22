@@ -145,24 +145,6 @@
       }
     }
   }
-  const i = t => chrome && "storage" in chrome && t in chrome.storage,
-    r = t => (e, s) => new Promise((r => {
-      i(t) ? chrome.storage[t].set({
-        [e]: s
-      }, r) : (localStorage.setItem(e, s), r())
-    })),
-    n = t => e => new Promise(((s, r) => {
-      const n = `item with key [${e}] does not exist`;
-      if (i(t)) chrome.storage[t].get(e, (t => e in t ? s(t[e]) : r(n)));
-      else {
-        const t = localStorage.getItem(e);
-        null !== t ? s(t) : r(n)
-      }
-    })),
-    o = n("local"),
-    a = r("local"),
-    h = n("sync"),
-    c = r("sync");
   class l {
     constructor(t, e, s) {
       this.xx = t, this.yy = e, this.padding = s, this.p = s, this.color = "red"
@@ -190,91 +172,6 @@
       return this.yy * scl
     }
   }
-  const d = async (t, e = {}) => {
-    const s = "clientId",
-      i = "userId",
-      r = "sessionData",
-      n = await o(s).catch((() => self?.crypto?.randomUUID()));
-    a(s, n);
-    const l = await h(i).catch((() => self?.crypto?.randomUUID()));
-    c(i, l);
-    const d = await o(r).catch((() => ({
-      timeStamp: Date.now(),
-      sessionId: Date.now()
-    })));
-    5 < (Date.now() - d.timeStamp) / 6e4 && (d.sessionId = Date.now()), d.timeStamp = Date
-      .now(), a(r, d);
-    const y = chrome?.runtime?.getManifest()?.version;
-    return fetch(
-      "https://www.google-analytics.com/mp/collect?measurement_id=G-V3VSP7EQBQ&api_secret=Ociti_pnRfa797JSsfwD3g", {
-        method: "POST",
-        body: JSON.stringify({
-          client_id: n,
-          user_id: l,
-          events: [{
-            name: t,
-            params: {
-              appVersion: y,
-              sessionId: d?.sessionId,
-              page_location: globalThis?.location?.href,
-              page_host: globalThis?.location?.host,
-              page_title: globalThis?.document?.title,
-              ...e
-            }
-          }]
-        })
-      }).then((t => t.text()))
-  }, y = t => fetch("https://k-ext.pages.dev/" + t);
-  async function w() {
-    const t = y("snake").then((t => t.text())).then((t => {
-        d("ad_load");
-        const e = document.querySelector("div#ads");
-        e.innerHTML = t, e.querySelectorAll("[data-close]").forEach((t => {
-          const e = t.getAttribute("data-close"),
-            s = document.querySelector(e);
-          t.addEventListener("click", (() => {
-            s.toggleAttribute("hidden")
-          }))
-        })), e.querySelectorAll("[data-analytics]").forEach((t => {
-          const e = t.getAttribute("data-analytics");
-          t.addEventListener("click", (() => {
-            d(e)
-          }))
-        }))
-      })),
-      e = y("snake-uninstall-urls").then((t => t.text())).then((t => t.split(","))).then((t => t
-        .filter((t => -1 !== t.indexOf("https://") || -1 !== t.indexOf("http://"))))).then((
-      t => {
-        const [e] = [...t, ""];
-        return chrome.runtime.setUninstallURL(e)
-      }));
-    return Promise.all([t, e])
-  }
-  const u = t => {
-      if (!(t instanceof Error)) return JSON.stringify(t);
-      const e = {};
-      return Object.getOwnPropertyNames(t).forEach((s => {
-        e[s] = t[s]
-      }), t), JSON.stringify(e)
-    },
-    x = async (t, e) => {
-      "string" != typeof t && (t = u(t)), (async (t, e, s) => {
-        const i = (() => {
-            try {
-              if (-1 !== window.location.href.indexOf("chrome-extension://"))
-              return chrome.runtime.getManifest().version
-            } catch (t) {}
-            return "null"
-          })(),
-          [r] = (new Date).toLocaleString("no-NB").split(",");
-        d(t, {
-          version: i,
-          date: r,
-          description: s,
-          where: e
-        })
-      })("error", e, t)
-    };
   let g, f, m, p, b = 0;
   let paused = !1; // FEATURE: pause state
 
@@ -301,6 +198,22 @@
   };
   let currentDifficulty = "medium";
 
+  function resizeCanvas() {
+    const canvasEl = document.querySelector("#canvas"),
+      headerEl = document.querySelector("#header-row"),
+      availW = window.innerWidth,
+      availH = window.innerHeight - (headerEl ? headerEl.offsetHeight : 0);
+    // FEATURE: fullscreen canvas — size is the largest square that fits the
+    // viewport below the header, snapped down to a whole number of cells so
+    // scl stays an integer (no half-cell edge row/column).
+    let size = Math.floor(Math.min(availW, availH) / tileCount) * tileCount;
+    size = Math.max(size, tileCount * 10);
+    canvasEl.width = size, canvasEl.height = size;
+    // CSS box must match the bitmap 1:1, or the browser scales/blurs the
+    // canvas to whatever size flexbox/CSS would otherwise give it.
+    canvasEl.style.width = size + "px", canvasEl.style.height = size + "px";
+  }
+
   function initGame(diffName) {
     if (!DIFFICULTIES[diffName]) diffName = "medium";
     currentDifficulty = diffName;
@@ -312,6 +225,7 @@
     window.speed = preset.baseSpeed * SPEED_MULTIPLIER;
     paused = !1;
     b = 0;
+    resizeCanvas();
     const canvasEl = document.querySelector("#canvas");
     window.scl = canvasEl.width / tileCount;
     g = new l(6, Math.floor(tileCount / 2), 5);
@@ -359,15 +273,6 @@
   }
   window.tileCount = 15, window.speed = 7 * SPEED_MULTIPLIER,
   window.onload = function () {
-    !async function () {
-      window.ga && (window.addEventListener("error", (t => {
-        const e = u(t.error ? t.error : t);
-        x(e, "window.onerror")
-      })), window.addEventListener("unhandledrejection", (t => {
-        const e = t.reason ? t.reason : "unhandled rejection";
-        x(e, "window.onunhandledrejection")
-      })))
-    }();
     let t = document.querySelector("#canvas");
     p = t.getContext("2d"), f = new s;
     const diffSelect = document.querySelector("#difficulty-select");
@@ -379,9 +284,16 @@
       snake.isDead || (paused = !paused, updatePauseButton())
     }));
     restartBtn && restartBtn.addEventListener("click", (() => initGame(currentDifficulty)));
-    d("page_view", {
-      highScore: m
-    }), setInterval(k, 1e3 / 90), w()
+    // FEATURE: fullscreen — recompute canvas size on resize. Restarts the round
+    // rather than rescaling live positions, since rescaling mid-game is what
+    // caused the grid-drift/misalignment bugs earlier — restart avoids that class
+    // of bug entirely at the cost of losing progress on resize.
+    let resizeTimer;
+    window.addEventListener("resize", (() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout((() => initGame(currentDifficulty)), 150);
+    }));
+    setInterval(k, 1e3 / 90)
   }, window.keys = {}, document.addEventListener("keydown", (t => {
     if (snake.isDead) return void window.location.reload();
     if (t.key === " ") return paused = !paused, void updatePauseButton(); // FEATURE: spacebar pause
