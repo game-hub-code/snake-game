@@ -60,20 +60,13 @@
           // the head depending on frame timing (the "sometimes kills, sometimes doesn't"
           // symptom). Using the shortest toroidal delta keeps it a normal ±1-cell step
           // across the wrap seam too.
-          // FIX: dir was raw pixel delta / scl. Since speed (5/7/9) isn't a divisor
-          // of scl, positions never land exactly on scl multiples, so this fraction
-          // slowly stops being a clean ±1/0 — segments then move at the wrong rate
-          // relative to their neighbor and the gap between blocks grows over time.
-          // xx/yy are integer cell coords (Math.round(x/scl)), so a delta of THOSE
-          // is always a clean integer step — use that for dir instead. Position
-          // itself is left untouched (no forced snapping — that shifts a segment
-          // that's mid-transit onto the wrong cell and creates the same gap bug).
+          const boardSize = tileCount * scl;
           for (let t = this.length - 1; t > 0; t--) {
-            let dxx = this.body[t - 1].xx - this.body[t].xx,
-              dyy = this.body[t - 1].yy - this.body[t].yy;
-            dxx > tileCount / 2 ? dxx -= tileCount : dxx < -tileCount / 2 && (dxx += tileCount);
-            dyy > tileCount / 2 ? dyy -= tileCount : dyy < -tileCount / 2 && (dyy += tileCount);
-            this.body[t].dir.x = dxx, this.body[t].dir.y = dyy
+            let dx = this.body[t - 1].x - this.body[t].x,
+              dy = this.body[t - 1].y - this.body[t].y;
+            dx > boardSize / 2 ? dx -= boardSize : dx < -boardSize / 2 && (dx += boardSize);
+            dy > boardSize / 2 ? dy -= boardSize : dy < -boardSize / 2 && (dy += boardSize);
+            this.body[t].dir.x = dx / scl, this.body[t].dir.y = dy / scl
           }
         }
         this.body.forEach((t => {
