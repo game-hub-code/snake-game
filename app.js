@@ -24,6 +24,7 @@
           y: 0
         }, this.greenFace = new Image, this.greenFace.src = "images/head.png", this.redFace =
         new Image, this.redFace.src = "images/redHead.png", this.face = this.greenFace;
+      this._lastCellX = null, this._lastCellY = null; // FEATURE: reliable per-cell trigger
       for (var n = 0; n < i; n++) this.body.push(new t((this.x - n) * scl, this.y * scl, {
         x: 1,
         y: 0
@@ -36,8 +37,16 @@
             .newDir.y = 1, this.newDir.x = 0), (keys.w || keys.arrowup) && 0 == this.dir.y && (
             this.newDir.y = -1, this.newDir.x = 0), 0 != this.dir.x || 0 != this.dir.y || 0 !=
           this.newDir.x || 0 != this.newDir.y)) {
-        if (0 == (this.head.x / scl).toFixed(1).substr(-1) && 0 == (this.head.y / scl).toFixed(
-            1).substr(-1)) {
+        // FIX: the old check used (x/scl).toFixed(1) ending in "0" to detect grid
+        // alignment. scl (~87.33px) isn't evenly divisible by speed (5/7/9px), so that
+        // narrow window sometimes never gets hit (turn/death check skipped — snake
+        // "passes through" what should be a collision) and sometimes gets hit twice in a
+        // row (double-processed — stray false self-collision). Comparing rounded cell
+        // coordinates against the last-processed cell fires exactly once per cell entry,
+        // independent of speed/scl ratio.
+        const curX = this.head.xx, curY = this.head.yy;
+        if (curX !== this._lastCellX || curY !== this._lastCellY) {
+          this._lastCellX = curX, this._lastCellY = curY;
           if (this.checkDeath() && !this.isDead) return this.die();
           this.body[1].xx == this.head.xx + this.newDir.x && this.body[1].yy == this.head.yy +
             this.newDir.y || (this.dir.x = this.newDir.x, this.dir.y = this.newDir.y, this.head
@@ -295,6 +304,7 @@
     window.snake = new e(4, Math.floor(tileCount / 2), 3, "rgb(50, 255, 50)");
     m = f["_hscore_" + diffName] || 0;
     updateHeader();
+    updatePauseButton();
   }
 
   function updateHeader() {
@@ -304,6 +314,12 @@
     diffEl && (diffEl.textContent = currentDifficulty);
     scoreEl && (scoreEl.textContent = b);
     bestEl && (bestEl.textContent = m);
+  }
+
+  function updatePauseButton() {
+    const btn = document.querySelector("#pause-btn");
+    btn && (btn.textContent = paused ? "Resume" : "Pause", btn.classList.toggle("is-paused",
+      paused))
   }
 
   function k() {
@@ -343,12 +359,18 @@
     const diffSelect = document.querySelector("#difficulty-select");
     initGame(diffSelect ? diffSelect.value : "medium");
     diffSelect && diffSelect.addEventListener("change", (ev => initGame(ev.target.value)));
+    const pauseBtn = document.querySelector("#pause-btn"),
+      restartBtn = document.querySelector("#restart-btn");
+    pauseBtn && pauseBtn.addEventListener("click", (() => {
+      snake.isDead || (paused = !paused, updatePauseButton())
+    }));
+    restartBtn && restartBtn.addEventListener("click", (() => initGame(currentDifficulty)));
     d("page_view", {
       highScore: m
     }), setInterval(k, 1e3 / 90), w()
   }, window.keys = {}, document.addEventListener("keydown", (t => {
     if (snake.isDead) return void window.location.reload();
-    if (t.key === " ") return void (paused = !paused); // FEATURE: spacebar pause
+    if (t.key === " ") return paused = !paused, void updatePauseButton(); // FEATURE: spacebar pause
     keys[t.key.toLowerCase()] = !0
   })), document.addEventListener("keyup", (t => keys[t.key.toLowerCase()] = !1))
 })();

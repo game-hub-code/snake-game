@@ -128,6 +128,32 @@
 			#header-best {
 				color: #ffd166;
 			}
+
+			.header-btn {
+				font-family: inherit;
+				font-size: 13px;
+				font-weight: 600;
+				color: #eee;
+				background: #1e1e1e;
+				border: 1px solid #4a4a4a;
+				border-radius: 6px;
+				padding: 6px 12px;
+				cursor: pointer;
+			}
+
+			.header-btn:hover {
+				border-color: #777;
+				background: #262626;
+			}
+
+			.header-btn:active {
+				background: #171717;
+			}
+
+			#pause-btn.is-paused {
+				border-color: #ffd166;
+				color: #ffd166;
+			}
 		</style>
 		<title>Snake</title>
 	</head>
@@ -153,6 +179,8 @@
 				<span class="stat-label">Best</span>
 				<span class="stat-value" id="header-best">0</span>
 			</div>
+			<button type="button" id="pause-btn" class="header-btn">Pause</button>
+			<button type="button" id="restart-btn" class="header-btn">Restart</button>
 		</div>
 		<canvas id="canvas" width="1310" height="1310"></canvas>
 
