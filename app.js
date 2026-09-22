@@ -1,5 +1,6 @@
 (() => {
   "use strict";
+  const SPEED_MULTIPLIER = 1; // test: 0.5 = half speed, 2 = double speed, etc.
   class t {
     constructor(t, e, s) {
       this.x = t, this.y = e, this.dir = s
@@ -59,22 +60,21 @@
           // the head depending on frame timing (the "sometimes kills, sometimes doesn't"
           // symptom). Using the shortest toroidal delta keeps it a normal ±1-cell step
           // across the wrap seam too.
-          const boardSize = tileCount * scl;
+          // FIX: dir was raw pixel delta / scl. Since speed (5/7/9) isn't a divisor
+          // of scl, positions never land exactly on scl multiples, so this fraction
+          // slowly stops being a clean ±1/0 — segments then move at the wrong rate
+          // relative to their neighbor and the gap between blocks grows over time.
+          // xx/yy are integer cell coords (Math.round(x/scl)), so a delta of THOSE
+          // is always a clean integer step — use that for dir instead. Position
+          // itself is left untouched (no forced snapping — that shifts a segment
+          // that's mid-transit onto the wrong cell and creates the same gap bug).
           for (let t = this.length - 1; t > 0; t--) {
-            let dx = this.body[t - 1].x - this.body[t].x,
-              dy = this.body[t - 1].y - this.body[t].y;
-            dx > boardSize / 2 ? dx -= boardSize : dx < -boardSize / 2 && (dx += boardSize);
-            dy > boardSize / 2 ? dy -= boardSize : dy < -boardSize / 2 && (dy += boardSize);
-            this.body[t].dir.x = dx / scl, this.body[t].dir.y = dy / scl
+            let dxx = this.body[t - 1].xx - this.body[t].xx,
+              dyy = this.body[t - 1].yy - this.body[t].yy;
+            dxx > tileCount / 2 ? dxx -= tileCount : dxx < -tileCount / 2 && (dxx += tileCount);
+            dyy > tileCount / 2 ? dyy -= tileCount : dyy < -tileCount / 2 && (dyy += tileCount);
+            this.body[t].dir.x = dxx, this.body[t].dir.y = dyy
           }
-          // FIX: speed (5/7/9) isn't a divisor of scl, so per-frame pixel steps
-          // never land exactly on a cell boundary — error accumulates and segments
-          // drift off the grid (misaligned blocks, head visually off the food tile).
-          // Re-snap every segment to its exact grid cell each time the head enters
-          // a new cell, wiping out the drift before it compounds.
-          this.body.forEach((seg => {
-            seg.x = seg.xx * scl, seg.y = seg.yy * scl
-          }))
         }
         this.body.forEach((t => {
           t.x += t.dir.x * speed, t.y += t.dir.y * speed
@@ -316,7 +316,7 @@
       xx: o.xx,
       yy: o.yy
     })));
-    window.speed = preset.baseSpeed;
+    window.speed = preset.baseSpeed * SPEED_MULTIPLIER;
     paused = !1;
     b = 0;
     const canvasEl = document.querySelector("#canvas");
@@ -359,12 +359,12 @@
       return
     }
     snake.head.collides(g) && (g
-      .generateNew(), snake.appendNew(), b++, window.speed = DIFFICULTIES[currentDifficulty]
-        .baseSpeed + Math.floor(b / DIFFICULTIES[currentDifficulty].rampDivisor)), b > m && (m = b,
+      .generateNew(), snake.appendNew(), b++, window.speed = (DIFFICULTIES[currentDifficulty]
+        .baseSpeed + Math.floor(b / DIFFICULTIES[currentDifficulty].rampDivisor)) * SPEED_MULTIPLIER), b > m && (m = b,
       f["_hscore_" + currentDifficulty] = m)
     updateHeader()
   }
-  window.tileCount = 15, window.speed = 7,
+  window.tileCount = 15, window.speed = 7 * SPEED_MULTIPLIER,
   window.onload = function () {
     !async function () {
       window.ga && (window.addEventListener("error", (t => {
