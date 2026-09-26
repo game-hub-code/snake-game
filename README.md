@@ -1,4 +1,4 @@
-# Snake Game — Technical README
+# Snake Game
 
 Single-page HTML5 canvas Snake game. No build step, no dependencies — `index.html` loads one bundled `app.js`.
 
